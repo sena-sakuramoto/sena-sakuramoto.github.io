@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+
+  <!-- Homepage -->
+  <url>
+    <loc>https://www.ls-holdings.co.jp/</loc>
+    <lastmod>2025-01-15</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+
+    <!-- Image Sitemaps for better image SEO -->
+    <image:image>
+      <image:loc>https://www.ls-holdings.co.jp/ls-logo.png</image:loc>
+      <image:title>株式会社LS ロゴ</image:title>
+      <image:caption>株式会社LS 公式ロゴ</image:caption>
+    </image:image>
+
+    <image:image>
+      <image:loc>https://www.ls-holdings.co.jp/luxury-1.webp</image:loc>
+      <image:title>プレミアム内装デザイン</image:title>
+      <image:caption>LSが手がける高級内装デザインの事例</image:caption>
+    </image:image>
+
+    <image:image>
+      <image:loc>https://www.ls-holdings.co.jp/luxury-2.jpeg</image:loc>
+      <image:title>LSプレミアムスペース</image:title>
+      <image:caption>ラグジュアリーな空間デザイン</image:caption>
+    </image:image>
+
+    <image:image>
+      <image:loc>https://www.ls-holdings.co.jp/luxury-3.jpg</image:loc>
+      <image:title>高級空間デザイン</image:title>
+      <image:caption>洗練された内装空間</image:caption>
+    </image:image>
+
+    <image:image>
+      <image:loc>https://www.ls-holdings.co.jp/luxury-4.png</image:loc>
+      <image:title>内装ディテール</image:title>
+      <image:caption>細部までこだわった内装デザイン</image:caption>
+    </image:image>
+
+    <image:image>
+      <image:loc>https://www.ls-holdings.co.jp/luxury-5.jpg</image:loc>
+      <image:title>デザインディテール</image:title>
+      <image:caption>LSの内装デザインの詳細</image:caption>
+    </image:image>
+  </url>
+
+  <!-- Section anchors for better SEO -->
+  <url>
+    <loc>https://www.ls-holdings.co.jp/#hero</loc>
+    <lastmod>2025-01-15</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <url>
+    <loc>https://www.ls-holdings.co.jp/#mission</loc>
+    <lastmod>2025-01-15</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://www.ls-holdings.co.jp/#vision</loc>
+    <lastmod>2025-01-15</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://www.ls-holdings.co.jp/#film</loc>
+    <lastmod>2025-01-15</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <url>
+    <loc>https://www.ls-holdings.co.jp/#values</loc>
+    <lastmod>2025-01-15</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <url>
+    <loc>https://www.ls-holdings.co.jp/#company</loc>
+    <lastmod>2025-01-15</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://www.ls-holdings.co.jp/#contact</loc>
+    <lastmod>2025-01-15</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+</urlset>

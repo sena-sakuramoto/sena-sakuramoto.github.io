@@ -1,0 +1,28 @@
+# robots.txt for 株式会社LS
+# https://www.ls-holdings.co.jp/
+
+# Allow all search engines to crawl all pages
+User-agent: *
+Allow: /
+
+# Sitemap location
+Sitemap: https://www.ls-holdings.co.jp/sitemap.xml
+
+# Allow specific bots (Google, Bing, etc.)
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: Slurp
+Allow: /
+
+User-agent: DuckDuckBot
+Allow: /
+
+User-agent: Baiduspider
+Allow: /
+
+User-agent: YandexBot
+Allow: /
