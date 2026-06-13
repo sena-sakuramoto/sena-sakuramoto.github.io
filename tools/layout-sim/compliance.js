@@ -43,7 +43,8 @@ function evaluateCompliance(m, p) {
     "(避難階は屋外出口まで2倍まで可。上階は直通階段位置で要検証)");
 
   const wide = seatAreaM2 >= REGS.seatAreaThresholdM2;
-  const reqMain = wide ? REGS.mainEscapeAisleMM : REGS.subEscapeAisleMM;
+  const reqMain = m.areaM2 >= REGS.largeAreaM2 ? REGS.mainEscapeAisleLargeMM
+    : wide ? REGS.mainEscapeAisleMM : REGS.subEscapeAisleMM;
   const bottleneckMM = m.bottleneckM * 1000;
   add("客席避難通路幅",
     p.mainAisle >= reqMain ? "ok" : "ng",
@@ -70,8 +71,25 @@ function evaluateCompliance(m, p) {
     `車椅子動線の目安 1200mm — 最遠席ルート最狭部 ${bottleneckMM.toFixed(0)}mm` +
     (bottleneckMM >= 1200 ? "" : "(主要動線のみ1200確保なら成立する場合あり)"));
 
-  add("便所", "info", "SHASE-S206・自治体基準",
-    `目安 ${m.wcBooths}ブース(${m.wcLabel})。男女別・小便器の内訳は保健所/ビル基準で最終調整`);
+  add("便所(器具数)", "info", "労安規則(従業員下限)・SHASE-S206事務所値の客数換算",
+    `${m.wcLabel}。法定の席数→便器数は存在しない(SHASE-S206に飲食店区分なし)。` +
+    "ブース900×1500・小便器ピッチ750・前室900で自動作図。手洗いは厨房用と別系統(目安36×28cm以上)");
+
+  if (m.wcReachable !== null && m.wcReachable !== undefined) {
+    add("便所(動線)", m.wcReachable ? "ok" : "ng", "食品衛生法 施設基準(自治体条例)",
+      m.wcReachable
+        ? "客席から厨房を経由しない動線を確保"
+        : "客席からトイレへ厨房を経由せず到達できない — 営業許可が下りないリスク");
+  }
+
+  add("グリストラップ", "warn", "下水道法・自治体条例(容量はHASS 217系で算定)",
+    "自治体条例で設置義務となる例が多い。厨房洗浄ゾーン直下・屋外埋設等、清掃動線と合わせ計画");
+
+  add("更衣場所", "warn", "労働安全衛生規則 第625条・営業許可施設基準",
+    "作業場の外に従業員更衣場所が必要(保健所検査項目)。バックヤード計画に織り込み");
+
+  add("搬入・ゴミ動線", "info", "実務(保健所指導)",
+    "搬入口→保管庫は最短に。ゴミ置場は客席・厨房から離し、客動線と交差させない");
 
   return rows;
 }

@@ -14,19 +14,20 @@ function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 // 自動最適化: パターン × 行位相 の候補を全生成し、総合スコア最大の案を返す
 function generateLayout(params) {
   const b = buildBoundary(params);
-  const est = toiletPlan(Math.max(1, Math.floor(Math.abs(polyArea(b.poly)) / AREA_PER_SEAT_EST)));
+  const areaM2 = Math.abs(polyArea(b.poly)) / 1e6;
+  const est = toiletPlan(Math.max(1, Math.floor(areaM2 * 1e6 / AREA_PER_SEAT_EST)), areaM2);
   const patterns = params.pattern === "auto" ? ["center", "side", "sideL"] : [params.pattern];
   const phases = [0, 0.5];
   let best = null;
   for (const pattern of patterns) {
     for (const phase of phases) {
-      const r = layoutCore({ ...params, pattern }, est.booths, { phase });
+      const r = layoutCore({ ...params, pattern }, est, { phase });
       if (!best || r.metrics.score > best.metrics.score) best = r;
     }
   }
-  const fin = toiletPlan(best.metrics.totalSeats);
-  if (fin.booths !== est.booths) {
-    return layoutCore(best.params, fin.booths, best.opt);
+  const fin = toiletPlan(best.metrics.totalSeats, areaM2);
+  if (fin.label !== est.label) {
+    return layoutCore(best.params, fin, best.opt);
   }
   return best;
 }
@@ -106,7 +107,7 @@ function findRun(poly, bb, orient, faceLimit, off, depth, blocks) {
 function rectCx(r) { return r.x + r.w / 2; }
 function rectCy(r) { return r.y + r.h / 2; }
 
-function layoutCore(params, wcBooths, opt) {
+function layoutCore(params, wcPlan, opt) {
   const p = { ...params };
   const { poly, warn } = buildBoundary(p);
   const bb = polyBBox(poly);
@@ -136,11 +137,31 @@ function layoutCore(params, wcBooths, opt) {
     }
   }
   if (!entrance) { entrance = { x: clamp(desired, 0, bb.maxX - entW), y: 0, w: entW, h: entD }; warn.push("入口が前面に収まりません。境界形状を確認してください。"); }
-  zoneEls.push({ layer: "ENTRANCE", kind: "rect", ...entrance, label: "入口" });
+  zoneEls.push({ layer: "ENTRANCE", kind: "rect", ...entrance, label: "入口・待合" });
   const entranceBlocks = [
     { ...entrance, pad: 300 },
     { x: entrance.x, y: entrance.y, w: entrance.w, h: entrance.h + 800, pad: 0 }, // 入口前の引き
   ];
+
+  // --- レジ(入口脇が実務定石: 会計混雑の防止・防犯) ---
+  let regiEl = null;
+  {
+    const rw = 900, rd = 600;
+    const cands = [
+      { x: entrance.x + entrance.w + 150, y: 100, w: rw, h: rd },
+      { x: entrance.x - 150 - rw, y: 100, w: rw, h: rd },
+      { x: entrance.x + entrance.w + 150, y: 100, w: rd, h: rw },
+      { x: entrance.x - 150 - rd, y: 100, w: rd, h: rw },
+    ];
+    for (const r of cands) {
+      if (rectInPoly(r, poly) && !colBlocks.some(c => rectsOverlap(r, c, c.pad))) {
+        regiEl = { layer: "COUNTER", kind: "rect", ...r, label: "レジ" };
+        zoneEls.push(regiEl);
+        entranceBlocks.push({ x: r.x, y: r.y, w: r.w, h: r.h, pad: 400 }); // 会計待ちの逃げ
+        break;
+      }
+    }
+  }
 
   // --- 厨房 ---
   const orient = p.kitchenPos || "back";
@@ -169,10 +190,47 @@ function layoutCore(params, wcBooths, opt) {
     }
   }
 
+  // 厨房本体(歩行障害)
+  const kitchenSolid = orient === "back"
+    ? { x: 0, y: K.faceLimit, w: bb.maxX, h: bb.maxY - K.faceLimit }
+    : orient === "left"
+      ? { x: 0, y: 0, w: K.faceLimit, h: bb.maxY }
+      : { x: K.faceLimit, y: 0, w: bb.maxX - K.faceLimit, h: bb.maxY };
+
+  // --- WC寸法(男女別ブース+小便器+手洗い+前室) ---
+  const bf = !!p.bfBooth;
+  const boothBandD = Math.max(WC.boothD, bf ? WC.bfD : 0);
+  const wcW = Math.max(1800,
+    (wcPlan.shared + wcPlan.femaleBooth + wcPlan.maleBooth) * WC.boothW +
+    wcPlan.urinal * WC.urinalP + (bf ? WC.bfW : 0) + WC.lavW);
+  const wcD = boothBandD + WC.corridor;
+
   // --- 厨房面から客席側へ: デシャップ → カウンター → サービス通路 ---
   const stripAvoid = [...entranceBlocks, ...colBlocks];
   const stripSolids = [];  // 歩行障害になる什器(デシャップ・カウンター)
   const stripAll = [];     // WC配置が避ける範囲(サービス通路含む)
+
+  // WCが奥指定×厨房奥の場合: 厨房帯の角へ先行確保し、客席側に前室廊下を残して
+  // デシャップ・カウンターをその区間から退避させる(小規模店の実務手法)
+  let wcRect = null;
+  if ((p.wcPos === "bl" || p.wcPos === "br") && orient === "back") {
+    const ax = p.wcPos === "bl" ? 0 : bb.maxX - wcW;
+    const wy = Math.min(K.faceLimit, bb.maxY - wcD);
+    for (let o = 0; o <= bb.maxX && !wcRect; o += 250) {
+      for (const sgn of o === 0 ? [1] : [1, -1]) {
+        const x = clamp(ax + sgn * o, 0, bb.maxX - wcW);
+        const r = { x, y: wy, w: wcW, h: wcD };
+        const corridor = { x, y: wy - WC.corridor, w: wcW, h: WC.corridor };
+        if (rectInPoly(r, poly) && rectInPoly(corridor, poly) &&
+            !colBlocks.some(c => rectsOverlap(r, c, c.pad)) &&
+            !entranceBlocks.some(b2 => rectsOverlap(r, b2, 0))) {
+          wcRect = r;
+          stripAvoid.push({ ...r, pad: 0 }, { ...corridor, pad: 0 });
+          break;
+        }
+      }
+    }
+  }
   let off = 0;
   let dishupEl = null;
   if (p.dishup) {
@@ -221,36 +279,56 @@ function layoutCore(params, wcBooths, opt) {
     : orient === "left"
       ? { x: 0, y: 0, w: K.faceLimit + off, h: bb.maxY, pad: 0 }
       : { x: K.faceLimit - off, y: 0, w: bb.maxX - (K.faceLimit - off), h: bb.maxY, pad: 0 };
-  // 厨房本体(歩行障害)
-  const kitchenSolid = orient === "back"
-    ? { x: 0, y: K.faceLimit, w: bb.maxX, h: bb.maxY - K.faceLimit }
-    : orient === "left"
-      ? { x: 0, y: 0, w: K.faceLimit, h: bb.maxY }
-      : { x: K.faceLimit, y: 0, w: bb.maxX - K.faceLimit, h: bb.maxY };
 
-  // --- WC(指定コーナーに最近接。厨房帯への食い込みは許す=厨房面積から控除) ---
-  const wcW = wcBooths * WC.boothW + WC.lavW, wcD = WC.boothD;
-  const anchors = {
-    fl: [0, 0], fr: [bb.maxX - wcW, 0],
-    bl: [0, bb.maxY - wcD], br: [bb.maxX - wcW, bb.maxY - wcD],
-  };
-  const anchor = anchors[p.wcPos] || anchors.fl;
-  const wcAvoid = [...stripAll.map(r => ({ ...r, pad: 0 })), ...entranceBlocks, ...colBlocks];
-  let wcRect = null, bestD = Infinity;
-  for (let gy = 0; gy <= bb.maxY - wcD; gy += 250) {
-    for (let gx = 0; gx <= bb.maxX - wcW; gx += 250) {
-      const d2 = (gx - anchor[0]) ** 2 + (gy - anchor[1]) ** 2;
-      if (d2 >= bestD) continue;
-      const r = { x: gx, y: gy, w: wcW, h: wcD };
-      if (rectInPoly(r, poly) && !wcAvoid.some(b => rectsOverlap(r, b, b.pad || 0))) { wcRect = r; bestD = d2; }
+  // --- WC配置(先行確保されていない場合: 指定コーナーに最近接でスキャン) ---
+  // 候補は「四周いずれかに幅900の自由床が接する」=前室・アプローチが成立する位置のみ
+  if (!wcRect) {
+    const anchors = {
+      fl: [0, 0], fr: [bb.maxX - wcW, 0],
+      bl: [0, bb.maxY - wcD], br: [bb.maxX - wcW, bb.maxY - wcD],
+    };
+    const anchor = anchors[p.wcPos] || anchors.bl;
+    const wcAvoid = [...stripAll.map(r => ({ ...r, pad: 0 })), ...entranceBlocks, ...colBlocks];
+    const sideFree = (r) => [
+      { x: r.x, y: r.y - 900, w: r.w, h: 900 },
+      { x: r.x, y: r.y + r.h, w: r.w, h: 900 },
+      { x: r.x - 900, y: r.y, w: 900, h: r.h },
+      { x: r.x + r.w, y: r.y, w: 900, h: r.h },
+    ].some(s => rectInPoly(s, poly) && !rectsOverlap(s, kitchenSolid, 0) &&
+      !stripSolids.some(q => rectsOverlap(s, q, 0)) && !colBlocks.some(c => rectsOverlap(s, c, 0)));
+    let bestD = Infinity;
+    for (let gy = 0; gy <= bb.maxY - wcD; gy += 250) {
+      for (let gx = 0; gx <= bb.maxX - wcW; gx += 250) {
+        const d2 = (gx - anchor[0]) ** 2 + (gy - anchor[1]) ** 2;
+        if (d2 >= bestD) continue;
+        const r = { x: gx, y: gy, w: wcW, h: wcD };
+        if (rectInPoly(r, poly) && !wcAvoid.some(b => rectsOverlap(r, b, b.pad || 0)) && sideFree(r)) {
+          wcRect = r; bestD = d2;
+        }
+      }
     }
+    if (!wcRect) { wcRect = { x: anchor[0], y: anchor[1], w: wcW, h: wcD }; warn.push("WCが指定位置周辺に収まりません。"); }
   }
-  if (!wcRect) { wcRect = { x: anchor[0], y: anchor[1], w: wcW, h: wcD }; warn.push("WCが指定位置周辺に収まりません。"); }
-  zoneEls.push({ layer: "WC", kind: "rect", ...wcRect, label: `WC ×${wcBooths}` });
+  zoneEls.push({ layer: "WC", kind: "rect", ...wcRect, label: "WC" });
+  // 器具帯は店内中心から遠い壁側、前室・廊下は客席側
+  {
+    const flip = rectCy(wcRect) > bb.maxY / 2; // 奥配置 → 器具は奥壁、前室は手前
+    const fx = (off, w, d, label) => flip
+      ? { x: wcRect.x + off, y: wcRect.y + wcRect.h - d, w, h: d, label }
+      : { x: wcRect.x + off, y: wcRect.y, w, h: d, label };
+    let ox = 0;
+    const put = (w, d, label) => { zoneEls.push({ layer: "WC", kind: "rect", ...fx(ox, w, d, label) }); ox += w; };
+    for (let i = 0; i < wcPlan.shared; i++) put(WC.boothW, WC.boothD, "共用");
+    for (let i = 0; i < wcPlan.femaleBooth; i++) put(WC.boothW, WC.boothD, "女");
+    if (bf) put(WC.bfW, WC.bfD, "多目的");
+    put(WC.lavW, WC.lavD, "手洗");
+    for (let i = 0; i < wcPlan.maleBooth; i++) put(WC.boothW, WC.boothD, "男");
+    for (let i = 0; i < wcPlan.urinal; i++) put(WC.urinalP, WC.urinalD, "小");
+  }
   const wcInKitchen = clipRectPoly(K.poly, wcRect);
   if (wcInKitchen.length >= 3) {
     kitchenArea -= Math.abs(polyArea(wcInKitchen));
-    warn.push("WCが厨房ゾーンに食い込んでいます(厨房面積を控除済み)。");
+    warn.push("WCが厨房帯端部に配置されています(厨房面積から控除済み)。");
   }
   kitchenEl.label = `厨房 ${(kitchenArea / 1e6).toFixed(1)}㎡`;
 
@@ -271,6 +349,26 @@ function layoutCore(params, wcBooths, opt) {
   const bandClip = clipRectPoly(poly, mainBand);
   if (bandClip.length >= 3) zoneEls.push({ layer: "AISLE", kind: "poly", pts: bandClip, label: `通路 ${p.mainAisle}` });
 
+  // --- サービスステーション(31坪≈102㎡以上でフロア中間・メイン動線沿いに設置が実務目安) ---
+  let stationEl = null;
+  if (area / 1e6 >= STATION_AREA_M2) {
+    const sw = 600, sh = 900;
+    const sAvoid = [...entranceBlocks, ...colBlocks, { ...wcRect, pad: 300 }, bandBlock];
+    outer2:
+    for (let dy = 0; dy <= bandTop * 0.4; dy += 300) {
+      for (const yy of [bandTop * 0.55 - dy, bandTop * 0.55 + dy]) {
+        for (const xx of [mainBand.x + mainBand.w + 100, mainBand.x - 100 - sw]) {
+          const r = { x: xx, y: yy, w: sw, h: sh };
+          if (rectInPoly(r, poly) && !sAvoid.some(b => rectsOverlap(r, b, b.pad || 0))) {
+            stationEl = { layer: "DISHUP", kind: "rect", ...r, label: "ST" };
+            zoneEls.push(stationEl);
+            break outer2;
+          }
+        }
+      }
+    }
+  }
+
   // --- テーブル類が避けるブロック一式 ---
   const tableBlocks = [
     bandBlock,
@@ -279,6 +377,7 @@ function layoutCore(params, wcBooths, opt) {
     ...entranceBlocks,
     ...colBlocks,
   ];
+  if (stationEl) tableBlocks.push({ x: stationEl.x, y: stationEl.y, w: stationEl.w, h: stationEl.h, pad: 300 });
 
   // --- 壁ベンチ(バンケット)席 ---
   if (p.bench) {
@@ -358,6 +457,11 @@ function layoutCore(params, wcBooths, opt) {
         const t = placedT;
         const ty = y + FURNITURE.chairZone + (t4.d - t.d) / 2;
         const uEls = [{ layer: "TABLE", kind: "rect", x, y: ty, w: t.w, h: t.d, label: t.label }];
+        if (t.pair) { // 連結卓: 600mmモジュールの分割線(2人卓×nとして運用)
+          for (let sx = 600; sx < t.w - 10; sx += 600) {
+            uEls.push({ layer: "TABLE", kind: "rect", x: x + sx - 5, y: ty, w: 10, h: t.d });
+          }
+        }
         const perSide = t.seats / 2;
         for (let s = 0; s < perSide; s++) {
           const cx = x + (t.w / perSide) * (s + 0.5) - FURNITURE.chair.w / 2;
@@ -379,6 +483,8 @@ function layoutCore(params, wcBooths, opt) {
   // --- 経路解析: 到達不能ユニットの撤去 + 経路距離 ---
   const walkObstaclesFor = (us) => [
     kitchenSolid, ...stripSolids, wcRect, ...columns,
+    ...(regiEl ? [{ x: regiEl.x, y: regiEl.y, w: regiEl.w, h: regiEl.h }] : []),
+    ...(stationEl ? [{ x: stationEl.x, y: stationEl.y, w: stationEl.w, h: stationEl.h }] : []),
     ...us.map(u => u.rect),
   ];
   const svcSrcRect = dishupEl || counterEl ||
@@ -386,7 +492,7 @@ function layoutCore(params, wcBooths, opt) {
       (orient === "back" ? bb.maxX : bb.maxY) / 2 - 600, (orient === "back" ? bb.maxX : bb.maxY) / 2 + 600);
 
   let removed = 0, circOk = false, bottleneck = p.mainAisle;
-  let maxEgress = 0, avgService = 0;
+  let maxEgress = 0, avgService = 0, wcReachable = null;
   for (let iter = 0; iter < 4; iter++) {
     const grid = buildWalkGrid(poly, bb, walkObstaclesFor(units), CIRC.cell, CIRC.minClear);
     const entCells = cellsInRect(grid, entrance, 200);
@@ -394,6 +500,7 @@ function layoutCore(params, wcBooths, opt) {
     const eg = shortestField(grid, entCells);
     const svcCells = cellsInRect(grid, svcSrcRect, 500);
     const sv = svcCells.length ? shortestField(grid, svcCells) : null;
+    wcReachable = !!accessPoint(grid, eg.dist, wcRect, CIRC.reach); // 客席側からの到達(厨房は障害扱い)
 
     const bad = [];
     let egMax = 0, egMaxCell = -1, svSum = 0, svSeats = 0;
@@ -418,6 +525,7 @@ function layoutCore(params, wcBooths, opt) {
     removed += bad.length;
   }
   if (removed > 0) warn.push(`動線が確保できない席ユニット ${removed} 件を自動撤去しました。`);
+  if (wcReachable === false) warn.push("客席からトイレへ厨房を経由せず到達できません。営業許可上のリスクがあるため配置を見直してください。");
 
   // --- 集計 ---
   let n6c = 0, n4c = 0, n2c = 0, nBenchMod = 0;
@@ -431,8 +539,16 @@ function layoutCore(params, wcBooths, opt) {
     else if (u.kind.startsWith("bench")) { nBenchMod++; benchSeats += u.seats; }
   }
   const totalSeats = seats6 + seats4 + seats2 + benchSeats + counterSeats;
-  const wcFinal = toiletPlan(totalSeats);
+  const wcFinal = toiletPlan(totalSeats, area / 1e6);
   const tsubo = area / 1e6 / 3.30578;
+  // 席あたり客席面積(実務レンジ: カウンター主体0.9〜1.2 / テーブル1.2〜1.6 / フルサービス1.6〜)
+  const seatZoneM2 = Math.max(0, (area - kitchenArea - wcRect.w * wcRect.h) / 1e6);
+  const areaPerSeat = totalSeats > 0 ? seatZoneM2 / totalSeats : 0;
+  if (totalSeats > 0 && areaPerSeat < AREA_PER_SEAT_RANGE.min) {
+    warn.push(`席あたり客席面積 ${areaPerSeat.toFixed(2)}㎡/席 — 実務最小0.9㎡を下回っています(詰めすぎ)。`);
+  } else if (totalSeats > 0 && areaPerSeat > AREA_PER_SEAT_RANGE.high * 1.5) {
+    warn.push(`席あたり客席面積 ${areaPerSeat.toFixed(2)}㎡/席 — 余裕が大きく、席数を増やす余地があります。`);
+  }
   const entRef = [rectCx(entrance), entrance.y + entrance.h];
   const svcRef = [rectCx(svcSrcRect), rectCy(svcSrcRect)];
 
@@ -475,6 +591,8 @@ function layoutCore(params, wcBooths, opt) {
     bottleneckM: bottleneck / 1000,
     wallRate, score, removedUnits: removed,
     occupants: totalSeats + Math.max(0, Math.floor(p.staff || 0)),
+    areaPerSeat, wcReachable,
+    staffGuide: Math.ceil(totalSeats / 10), // スタッフ1人/10席の実務目安
   };
   const elements = [...zoneEls, ...units.flatMap(u => u.els)];
   return { elements, metrics, warnings: warn, params: p, opt, size: { W: bb.maxX, D: bb.maxY } };

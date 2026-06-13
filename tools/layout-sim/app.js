@@ -31,6 +31,7 @@ function readParams() {
     kitchenPos: $("inKitchenPos").value,
     entrancePos: $("inEntrance").value,
     wcPos: $("inWCPos").value,
+    bfBooth: $("inBF").checked,
     presetKey: $("inPreset").value,
     mainAisle: Number($("inMain").value),
     subAisle: Number($("inSub").value),
@@ -71,7 +72,7 @@ function renderSVG(result) {
   const svg = $("plan");
   svg.setAttribute("viewBox", `-300 -300 ${W + 600} ${D + 600}`);
   let s = "";
-  const order = ["AISLE", "ENTRANCE", "WC", "KITCHEN", "KZONE", "DISHUP", "COUNTER", "BENCH", "TABLE", "CHAIR", "COLUMN", "WALL"];
+  const order = ["AISLE", "ENTRANCE", "KITCHEN", "KZONE", "WC", "DISHUP", "COUNTER", "BENCH", "TABLE", "CHAIR", "COLUMN", "WALL"];
   const sorted = [...result.elements].sort((a, b) => order.indexOf(a.layer) - order.indexOf(b.layer));
   const esc = (t) => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;");
   for (const e of sorted) {
