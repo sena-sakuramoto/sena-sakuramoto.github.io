@@ -10,6 +10,8 @@ GitHub Pages 上では `/tools/layout-sim/` で公開される。
 | `presets.js` | ルールテーブル(家具寸法・業態プリセット・トイレ便器数目安)。**数値調整はここだけ触ればよい** |
 | `engine.js` | 配置エンジン。ゾーニング(WC→入口→厨房→デシャップ→カウンター→通路→客席)とテーブル充填、通路幅スイープ |
 | `dxf.js` | DXF(R12)書き出し。レイヤー分けされた線分+文字。Rhinoでそのまま開ける(単位mm) |
+| `threedm.js` | .3dm書き出し(rhino3dm.js/WASMをCDNから遅延ロード)。レイヤー色付きポリライン+ラベルのTextDot |
+| `gh/layout_from_json.py` | GHPythonブリッジ。JSON書き出しをGrasshopper上に再構築するスクリプト |
 | `app.js` | UIバインド・SVG描画・KPI表示 |
 | `index.html` / `style.css` | 画面 |
 
@@ -20,8 +22,9 @@ DXFも同じ座標系で出力されるため、Rhino上では入口が下・厨
 
 ## Rhino / Grasshopper 連携
 
+- **3DM書き出し**: rhino3dm.jsでネイティブ.3dmを生成(レイヤー色・ラベルTextDot付き)。Rhinoで直接開ける。CDNが使えないオフライン環境ではDXFを使用
 - **DXF書き出し**: そのままRhinoにインポート(レイヤー: WALL / KITCHEN / DISHUP / COUNTER / TABLE / CHAIR / AISLE / WC / ENTRANCE)
-- **JSON書き出し**: 全要素の矩形データ+パラメータ+指標。GHPython側でこのJSONを読んで矩形を再構築すれば、Grasshopper上でリアルタイム編集に接続できる(Phase 2予定)
+- **JSON書き出し → GHPython**: `gh/layout_from_json.py` をGHPythonコンポーネントに貼り、File Pathで layout.json を接続すると、Grasshopper上に矩形群(rects/layers/labels)と指標(info)が展開される
 
 ## 主な前提値(presets.js)
 

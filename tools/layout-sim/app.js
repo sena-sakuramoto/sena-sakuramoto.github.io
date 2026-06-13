@@ -114,6 +114,20 @@ function init() {
     if (!lastResult) return;
     downloadFile("layout.dxf", buildDXF(lastResult.elements), "application/dxf");
   });
+  $("btn3DM").addEventListener("click", async () => {
+    if (!lastResult) return;
+    const btn = $("btn3DM");
+    btn.disabled = true;
+    btn.textContent = "生成中…";
+    try {
+      await export3dm(lastResult.elements);
+    } catch (e) {
+      alert(e.message || "3DM書き出しに失敗しました。DXF書き出しをご利用ください。");
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "3DM書き出し (Rhino)";
+    }
+  });
   $("btnJSON").addEventListener("click", () => {
     if (!lastResult) return;
     downloadFile("layout.json", JSON.stringify(lastResult, null, 2), "application/json");
