@@ -4,7 +4,7 @@
 const RHINO3DM_CDN = "https://cdn.jsdelivr.net/npm/rhino3dm@8.4.0/rhino3dm.min.js";
 
 const LAYER_RGB = {
-  WALL: [40, 40, 40], KITCHEN: [214, 84, 58], DISHUP: [224, 138, 44],
+  WALL: [40, 40, 40], KITCHEN: [214, 84, 58], KZONE: [222, 150, 135], DISHUP: [224, 138, 44],
   COUNTER: [90, 140, 60], TABLE: [62, 106, 150], BENCH: [168, 145, 95],
   CHAIR: [150, 144, 134], AISLE: [200, 196, 186], WC: [150, 80, 160],
   ENTRANCE: [190, 160, 40], COLUMN: [85, 83, 78],

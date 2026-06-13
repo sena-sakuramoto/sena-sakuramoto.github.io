@@ -154,10 +154,15 @@
     <div class="field">
       <label>レイアウトパターン</label>
       <select id="inPattern">
-        <option value="auto">自動(席数最大)</option>
+        <option value="auto">自動最適化(スコア最大)</option>
         <option value="center">中央通路</option>
-        <option value="side">片側通路</option>
+        <option value="side">右側通路</option>
+        <option value="sideL">左側通路</option>
       </select>
+    </div>
+    <div class="field">
+      <label>従業員数(収容人員算定用)</label>
+      <input type="number" id="inStaff" value="4" min="0" max="50" step="1">
     </div>
     <div class="btns">
       <button id="btn3DM">3DM書き出し (Rhino)</button>
@@ -194,13 +199,25 @@
         </thead>
         <tbody id="sweepBody"></tbody>
       </table>
-      <p class="note">配膳・避難は直線距離の目安。スコア = 坪効率50% + 配膳動線20% + 避難距離15% + 壁際席率15%(presets.js で調整可)。</p>
+      <p class="note">配膳・避難は通路経路上の実測距離(100mmグリッド近似)。到達不能な席は自動撤去して席数に数えない。スコア = 坪効率50% + 配膳動線20% + 避難距離15% + 壁際席率15%(presets.js で調整可)。</p>
+    </div>
+    <div class="panel">
+      <h2>法規チェック(一次スクリーニング)</h2>
+      <table class="cmp reg">
+        <thead>
+          <tr><th>項目</th><th>判定</th><th>根拠</th><th>内容</th></tr>
+        </thead>
+        <tbody id="regBody"></tbody>
+      </table>
+      <p class="note">基準値は presets.js の REGS で案件ごとに調整可。<strong>本表は一次チェックの目安であり、最終判断は建築士による設計検証と所轄消防・保健所・特定行政庁との協議によること。</strong></p>
     </div>
   </section>
 </main>
 <script src="presets.js"></script>
 <script src="geometry.js"></script>
+<script src="circulation.js"></script>
 <script src="engine.js"></script>
+<script src="compliance.js"></script>
 <script src="dxf.js"></script>
 <script src="threedm.js"></script>
 <script src="app.js"></script>

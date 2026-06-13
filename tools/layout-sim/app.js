@@ -1,11 +1,11 @@
 // UIバインド + SVG描画 + エクスポート
 
 const SVG_COLORS = {
-  WALL: "none", KITCHEN: "#f7d9d2", DISHUP: "#f3c08c", COUNTER: "#cfe3c2",
+  WALL: "none", KITCHEN: "#f7d9d2", KZONE: "none", DISHUP: "#f3c08c", COUNTER: "#cfe3c2",
   TABLE: "#c8d8ea", BENCH: "#d9bf8f", CHAIR: "#e6e2da", AISLE: "#f1efe9",
   WC: "#e3cfe6", ENTRANCE: "#f5e9b8", COLUMN: "#8d8a83",
 };
-const SVG_STROKES = { WALL: "#2a2a28", TABLE: "#5b7da0", BENCH: "#a8915f", CHAIR: "#a5a097", COUNTER: "#6f9457", COLUMN: "#55534e" };
+const SVG_STROKES = { WALL: "#2a2a28", KZONE: "#cf9a8e", TABLE: "#5b7da0", BENCH: "#a8915f", CHAIR: "#a5a097", COUNTER: "#6f9457", COLUMN: "#55534e" };
 
 const $ = (id) => document.getElementById(id);
 
@@ -43,6 +43,7 @@ function readParams() {
     counterPitch: Number($("inPitch").value),
     dishup: $("inDishup").checked,
     pattern: $("inPattern").value,
+    staff: Number($("inStaff").value),
   };
 }
 
@@ -70,7 +71,7 @@ function renderSVG(result) {
   const svg = $("plan");
   svg.setAttribute("viewBox", `-300 -300 ${W + 600} ${D + 600}`);
   let s = "";
-  const order = ["AISLE", "ENTRANCE", "WC", "KITCHEN", "DISHUP", "COUNTER", "BENCH", "TABLE", "CHAIR", "COLUMN", "WALL"];
+  const order = ["AISLE", "ENTRANCE", "WC", "KITCHEN", "KZONE", "DISHUP", "COUNTER", "BENCH", "TABLE", "CHAIR", "COLUMN", "WALL"];
   const sorted = [...result.elements].sort((a, b) => order.indexOf(a.layer) - order.indexOf(b.layer));
   const esc = (t) => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;");
   for (const e of sorted) {
@@ -80,7 +81,8 @@ function renderSVG(result) {
     let lx, ly;
     if (e.kind === "poly") {
       const pts = e.pts.map(q => `${q[0]},${D - q[1]}`).join(" ");
-      s += `<polygon points="${pts}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/>`;
+      const dash = e.layer === "KZONE" ? ` stroke-dasharray="200 150"` : "";
+      s += `<polygon points="${pts}" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"${dash}/>`;
       const c = polyCentroid(e.pts);
       lx = c[0]; ly = D - c[1];
     } else {
@@ -100,16 +102,28 @@ function renderKPIs(m) {
   $("kpis").innerHTML = `
     <div class="kpi"><div class="num">${m.totalSeats}<small> 席</small></div><div class="cap">総席数</div></div>
     <div class="kpi"><div class="num">${m.score.toFixed(0)}<small> 点</small></div><div class="cap">総合スコア</div></div>
+    <div class="kpi"><div class="num">${m.occupants}<small> 人</small></div><div class="cap">収容人員(規則1条の3)</div></div>
     <div class="kpi"><div class="num">${m.seatsPerTsubo.toFixed(2)}<small> 席/坪</small></div><div class="cap">坪効率 (${m.tsubo.toFixed(1)}坪)</div></div>
     <div class="kpi"><div class="num">${m.n6 + m.n4}<small> 卓 / ${m.seats6 + m.seats4}席</small></div><div class="cap">6・4人卓</div></div>
     <div class="kpi"><div class="num">${m.n2}<small> 卓 / ${m.seats2}席</small></div><div class="cap">2人卓</div></div>
     <div class="kpi"><div class="num">${m.benchSeats}<small> 席</small></div><div class="cap">壁ベンチ席</div></div>
     <div class="kpi"><div class="num">${m.counterSeats}<small> 席</small></div><div class="cap">カウンター</div></div>
     <div class="kpi"><div class="num">${m.kitchenM2.toFixed(1)}<small> ㎡ (${m.kitchenPct.toFixed(0)}%)</small></div><div class="cap">厨房面積</div></div>
-    <div class="kpi"><div class="num">${m.avgServiceM.toFixed(1)}<small> m</small></div><div class="cap">配膳動線(平均・直線)</div></div>
-    <div class="kpi"><div class="num">${m.maxEgressM.toFixed(1)}<small> m</small></div><div class="cap">避難距離(最大・直線)</div></div>
+    <div class="kpi"><div class="num">${m.avgServiceM.toFixed(1)}<small> m</small></div><div class="cap">配膳動線(平均・経路)</div></div>
+    <div class="kpi"><div class="num">${m.maxEgressM.toFixed(1)}<small> m</small></div><div class="cap">避難距離(最大・経路)</div></div>
+    <div class="kpi"><div class="num">${(m.bottleneckM * 1000).toFixed(0)}<small> mm</small></div><div class="cap">最遠席ルート最狭部</div></div>
     <div class="kpi"><div class="num">${(m.wallRate * 100).toFixed(0)}<small> %</small></div><div class="cap">壁際席率</div></div>
     <div class="kpi"><div class="num">${m.wcBooths}<small> ブース</small></div><div class="cap">トイレ目安 (${m.wcLabel})</div></div>`;
+}
+
+const REG_CHIP = { ok: ["○", "chip-ok"], ng: ["×", "chip-ng"], warn: ["要対応", "chip-warn"], info: ["参考", "chip-info"] };
+
+function renderCompliance(m, params) {
+  const rows = evaluateCompliance(m, params);
+  $("regBody").innerHTML = rows.map(r => {
+    const [t, cls] = REG_CHIP[r.status] || REG_CHIP.info;
+    return `<tr><td>${r.item}</td><td><span class="chip ${cls}">${t}</span></td><td class="basis">${r.basis}</td><td class="detail">${r.detail}</td></tr>`;
+  }).join("");
 }
 
 function renderSweep(params) {
@@ -128,18 +142,24 @@ function renderSweep(params) {
 }
 
 let lastResult = null;
+let updateTimer = null;
 
 function update() {
   const params = readParams();
   syncShapeUI();
-  if (params.pattern === "auto") params.pattern = bestPattern(params);
   lastResult = generateLayout(params);
   renderSVG(lastResult);
   renderKPIs(lastResult.metrics);
-  renderSweep(readParams());
+  renderCompliance(lastResult.metrics, params);
+  renderSweep(params);
   $("warns").innerHTML = lastResult.warnings.map(w => "⚠ " + w).join("<br>");
   $("valMix4").textContent = $("inMix4").value + "%";
   $("valKitchen").textContent = $("inKitchen").value + "%";
+}
+
+function updateDebounced() {
+  clearTimeout(updateTimer);
+  updateTimer = setTimeout(update, 150);
 }
 
 function init() {
@@ -150,8 +170,8 @@ function init() {
   }
   $("inPreset").value = "izakaya";
   applyPreset("izakaya");
-  $("inPreset").addEventListener("change", () => { applyPreset($("inPreset").value); update(); });
-  document.querySelectorAll("input, select, textarea").forEach(el => el.addEventListener("input", update));
+  $("inPreset").addEventListener("change", () => { applyPreset($("inPreset").value); updateDebounced(); });
+  document.querySelectorAll("input, select, textarea").forEach(el => el.addEventListener("input", updateDebounced));
 
   $("btnDXF").addEventListener("click", () => {
     if (!lastResult) return;

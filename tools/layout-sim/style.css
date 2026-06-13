@@ -31,6 +31,13 @@ select, input[type=number], textarea {
   font-size: 14px; background: #fff; color: var(--ink); box-sizing: border-box;
 }
 textarea { font-family: ui-monospace, monospace; font-size: 12px; resize: vertical; }
+.chip { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 11px; white-space: nowrap; }
+.chip-ok { background: #e3eedd; color: #41662f; }
+.chip-ng { background: #f3d9d4; color: #9c3a22; }
+.chip-warn { background: #f7ecd2; color: #8a6a1d; }
+.chip-info { background: #e7e5e0; color: #6b675f; }
+table.reg td.basis { font-size: 11px; color: var(--sub); white-space: nowrap; }
+table.reg td.detail { font-size: 12px; }
 input[type=range] { width: 100%; accent-color: var(--accent); }
 .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .check { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-bottom: 10px; }

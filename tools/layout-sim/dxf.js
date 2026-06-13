@@ -2,7 +2,7 @@
 // レイヤー別に LINE / TEXT のみで構成(R12互換が最も確実にRhinoで開ける)。
 
 const DXF_COLORS = {
-  WALL: 7, KITCHEN: 1, DISHUP: 30, COUNTER: 3,
+  WALL: 7, KITCHEN: 1, KZONE: 13, DISHUP: 30, COUNTER: 3,
   TABLE: 5, BENCH: 33, CHAIR: 8, AISLE: 252, WC: 6, ENTRANCE: 2, COLUMN: 250, TEXT: 7,
 };
 
