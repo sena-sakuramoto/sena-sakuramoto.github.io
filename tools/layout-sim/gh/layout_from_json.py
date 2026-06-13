@@ -29,16 +29,21 @@ if path:
         data = json.load(f)
 
     for e in data.get("elements", []):
-        if e.get("kind") != "rect":
+        kind = e.get("kind")
+        if kind == "rect":
+            x, y, w, h = e["x"], e["y"], e["w"], e["h"]
+            pts = [
+                rg.Point3d(x, y, 0),
+                rg.Point3d(x + w, y, 0),
+                rg.Point3d(x + w, y + h, 0),
+                rg.Point3d(x, y + h, 0),
+                rg.Point3d(x, y, 0),
+            ]
+        elif kind == "poly":
+            pts = [rg.Point3d(q[0], q[1], 0) for q in e["pts"]]
+            pts.append(rg.Point3d(e["pts"][0][0], e["pts"][0][1], 0))
+        else:
             continue
-        x, y, w, h = e["x"], e["y"], e["w"], e["h"]
-        pts = [
-            rg.Point3d(x, y, 0),
-            rg.Point3d(x + w, y, 0),
-            rg.Point3d(x + w, y + h, 0),
-            rg.Point3d(x, y + h, 0),
-            rg.Point3d(x, y, 0),
-        ]
         rects.append(rg.PolylineCurve(pts))
         layers.append(e["layer"])
         labels.append(e.get("label") or "")

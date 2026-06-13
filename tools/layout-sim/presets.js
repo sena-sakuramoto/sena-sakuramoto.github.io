@@ -4,11 +4,20 @@
 const FURNITURE = {
   table2: { w: 700,  d: 700, seats: 2, label: "2人卓" },
   table4: { w: 1500, d: 750, seats: 4, label: "4人卓" },
+  table6: { w: 1800, d: 750, seats: 6, label: "6人卓" },
   chair:  { w: 420,  d: 420 },
   chairZone: 450,      // テーブル縁から椅子着席に必要な奥行
   counterTopDepth: 450,
   stoolZone: 600,      // カウンター椅子の占有奥行
   dishupDepth: 600,    // デシャップ台の奥行
+  // 壁ベンチ(バンケット)モジュール: 壁→ベンチ500+テーブル700+椅子側450 = 奥行1650
+  bench: { depth: 500, tableD: 700, zoneD: 1650, mod4W: 1400, mod2W: 750, gap: 300, minWall: 1800 },
+};
+
+// 多目的スコア(0〜100)の重み。capacity=坪効率 / service=配膳動線 / egress=避難距離 / wall=壁際席率
+const SCORE = {
+  weights: { capacity: 0.5, service: 0.2, egress: 0.15, wall: 0.15 },
+  targetSeatsPerTsubo: 2.2,  // これ以上で坪効率スコア満点
 };
 
 const PRESETS = {

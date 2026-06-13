@@ -3,7 +3,7 @@
 
 const DXF_COLORS = {
   WALL: 7, KITCHEN: 1, DISHUP: 30, COUNTER: 3,
-  TABLE: 5, CHAIR: 8, AISLE: 252, WC: 6, ENTRANCE: 2, TEXT: 7,
+  TABLE: 5, BENCH: 33, CHAIR: 8, AISLE: 252, WC: 6, ENTRANCE: 2, COLUMN: 250, TEXT: 7,
 };
 
 function dxfPair(code, value) { return code + "\n" + value + "\n"; }
@@ -39,6 +39,15 @@ function buildDXF(elements) {
       s += dxfLine(e.layer, x + w, y + h, x, y + h);
       s += dxfLine(e.layer, x, y + h, x, y);
       if (e.label) s += dxfText("TEXT", x + 100, y + h / 2, 200, e.label);
+    } else if (e.kind === "poly") {
+      for (let i = 0; i < e.pts.length; i++) {
+        const a = e.pts[i], b = e.pts[(i + 1) % e.pts.length];
+        s += dxfLine(e.layer, a[0], a[1], b[0], b[1]);
+      }
+      if (e.label) {
+        const c = polyCentroid(e.pts);
+        s += dxfText("TEXT", c[0], c[1], 200, e.label);
+      }
     }
   }
   s += dxfPair(0, "ENDSEC") + dxfPair(0, "EOF");

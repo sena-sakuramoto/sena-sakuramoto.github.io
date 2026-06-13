@@ -20,7 +20,15 @@
       <select id="inPreset"></select>
       <p id="presetNote" class="note" style="margin-top:6px;border:none;padding:0"></p>
     </div>
-    <div class="row2">
+    <div class="field">
+      <label>平面形状</label>
+      <select id="inShape">
+        <option value="rect">矩形</option>
+        <option value="L">L字(欠き込みあり)</option>
+        <option value="free">自由入力(頂点座標)</option>
+      </select>
+    </div>
+    <div class="row2" id="grpWD">
       <div class="field">
         <label>間口 (mm)</label>
         <input type="number" id="inW" value="9000" step="500" min="4000">
@@ -29,6 +37,67 @@
         <label>奥行 (mm)</label>
         <input type="number" id="inD" value="12000" step="500" min="6000">
       </div>
+    </div>
+    <div id="grpNotch" style="display:none">
+      <div class="field">
+        <label>欠き位置</label>
+        <select id="inNotchPos">
+          <option value="fl">前左</option>
+          <option value="fr">前右</option>
+          <option value="bl">奥左</option>
+          <option value="br" selected>奥右</option>
+        </select>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label>欠き幅 (mm)</label>
+          <input type="number" id="inNotchW" value="3000" step="500" min="500">
+        </div>
+        <div class="field">
+          <label>欠き奥行 (mm)</label>
+          <input type="number" id="inNotchD" value="3000" step="500" min="500">
+        </div>
+      </div>
+    </div>
+    <div class="field" id="grpFree" style="display:none">
+      <label>頂点座標 (x,y を1行ずつ・mm・3点以上)</label>
+      <textarea id="inFree" rows="6">0,0
+12000,0
+12000,8000
+9000,8000
+9000,14000
+0,14000</textarea>
+    </div>
+    <div class="field">
+      <label>柱 (x,y,幅,奥行 を1行ずつ・任意)</label>
+      <textarea id="inCols" rows="2" placeholder="例: 4500,6000,600,600"></textarea>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>厨房位置</label>
+        <select id="inKitchenPos">
+          <option value="back">最奥</option>
+          <option value="left">左側</option>
+          <option value="right">右側</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>入口位置(前面)</label>
+        <select id="inEntrance">
+          <option value="right">右</option>
+          <option value="center">中央</option>
+          <option value="left">左</option>
+        </select>
+      </div>
+    </div>
+    <div class="field">
+      <label>WC位置</label>
+      <select id="inWCPos">
+        <option value="fl">前左</option>
+        <option value="fr">前右</option>
+        <option value="bl">奥左</option>
+        <option value="br">奥右</option>
+      </select>
     </div>
     <div class="field">
       <label>メイン通路幅 (mm)</label>
@@ -54,6 +123,11 @@
       <label>4人卓の席数比率 <span class="val" id="valMix4"></span></label>
       <input type="range" id="inMix4" min="0" max="100" step="5" value="60">
     </div>
+    <div class="field">
+      <label>6人卓(優先配置・卓数)</label>
+      <input type="number" id="inN6" value="0" min="0" max="8" step="1">
+    </div>
+    <label class="check"><input type="checkbox" id="inBench"> 壁ベンチ席(バンケット)</label>
     <div class="field">
       <label>厨房面積比率 <span class="val" id="valKitchen"></span></label>
       <input type="range" id="inKitchen" min="15" max="45" step="1" value="30">
@@ -106,22 +180,26 @@
       <span style="color:#f3c08c">デシャップ</span>
       <span style="color:#cfe3c2">カウンター</span>
       <span style="color:#c8d8ea">テーブル</span>
+      <span style="color:#d9bf8f">ベンチ</span>
+      <span style="color:#8d8a83">柱</span>
       <span style="color:#e3cfe6">WC</span>
       <span style="color:#f5e9b8">入口</span>
       <span style="color:#f1efe9">通路</span>
     </div>
     <div class="panel">
-      <h2>通路幅 × パターン比較(他条件は現在の設定)</h2>
+      <h2>通路幅 × パターン比較(総合スコア順・他条件は現在の設定)</h2>
       <table class="cmp">
         <thead>
-          <tr><th>パターン</th><th>総席数</th><th>4人卓</th><th>2人卓</th><th>カウンター</th><th>席/坪</th></tr>
+          <tr><th>パターン</th><th>総席数</th><th>席/坪</th><th>配膳 平均</th><th>避難 最大</th><th>壁際率</th><th>スコア</th></tr>
         </thead>
         <tbody id="sweepBody"></tbody>
       </table>
+      <p class="note">配膳・避難は直線距離の目安。スコア = 坪効率50% + 配膳動線20% + 避難距離15% + 壁際席率15%(presets.js で調整可)。</p>
     </div>
   </section>
 </main>
 <script src="presets.js"></script>
+<script src="geometry.js"></script>
 <script src="engine.js"></script>
 <script src="dxf.js"></script>
 <script src="threedm.js"></script>
