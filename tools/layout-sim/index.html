@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>飲食店レイアウト・シミュレーター</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>飲食店レイアウト・シミュレーター</h1>
+  <p>業態・通路幅・席ミックスから席数と平面パターンを検討 → DXFでRhinoへ書き出し</p>
+</header>
+<main>
+  <aside class="panel">
+    <h2>条件設定</h2>
+    <div class="field">
+      <label>業態プリセット</label>
+      <select id="inPreset"></select>
+      <p id="presetNote" class="note" style="margin-top:6px;border:none;padding:0"></p>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>間口 (mm)</label>
+        <input type="number" id="inW" value="9000" step="500" min="4000">
+      </div>
+      <div class="field">
+        <label>奥行 (mm)</label>
+        <input type="number" id="inD" value="12000" step="500" min="6000">
+      </div>
+    </div>
+    <div class="field">
+      <label>メイン通路幅 (mm)</label>
+      <select id="inMain">
+        <option value="900">900 — 最小限</option>
+        <option value="1000">1000</option>
+        <option value="1100">1100</option>
+        <option value="1200">1200 — 車椅子対応・ゆったり</option>
+        <option value="1350">1350</option>
+        <option value="1500">1500</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>サブ通路(サービス動線) (mm)</label>
+      <select id="inSub">
+        <option value="600">600</option>
+        <option value="700">700</option>
+        <option value="750">750</option>
+        <option value="900">900</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>4人卓の席数比率 <span class="val" id="valMix4"></span></label>
+      <input type="range" id="inMix4" min="0" max="100" step="5" value="60">
+    </div>
+    <div class="field">
+      <label>厨房面積比率 <span class="val" id="valKitchen"></span></label>
+      <input type="range" id="inKitchen" min="15" max="45" step="1" value="30">
+    </div>
+    <div class="field">
+      <label>卓間隔 (mm)</label>
+      <select id="inGap">
+        <option value="500">500</option>
+        <option value="600">600</option>
+        <option value="700">700</option>
+        <option value="800">800</option>
+      </select>
+    </div>
+    <label class="check"><input type="checkbox" id="inDishup" checked> デシャップ台(厨房前)</label>
+    <label class="check"><input type="checkbox" id="inCounter" checked> 厨房前カウンター席</label>
+    <div class="field">
+      <label>カウンター席ピッチ (mm)</label>
+      <select id="inPitch">
+        <option value="600">600 — 詰め</option>
+        <option value="650">650 — 標準</option>
+        <option value="700">700 — ゆったり</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>レイアウトパターン</label>
+      <select id="inPattern">
+        <option value="auto">自動(席数最大)</option>
+        <option value="center">中央通路</option>
+        <option value="side">片側通路</option>
+      </select>
+    </div>
+    <div class="btns">
+      <button id="btnDXF">DXF書き出し (Rhino)</button>
+      <button id="btnJSON" class="ghost">JSON書き出し</button>
+    </div>
+    <div id="warns" class="warns"></div>
+    <p class="note">
+      前提: テーブル 2人卓700×700 / 4人卓1500×750、椅子スペース450、カウンター奥行450+椅子600、デシャップ奥行600。
+      トイレ便器数は客席数からの目安であり、所轄保健所・自治体条例の確認が必要です。
+      数値ルールは presets.js に集約(GHPython移植時に共用)。
+    </p>
+  </aside>
+
+  <section>
+    <div class="kpis" id="kpis"></div>
+    <svg id="plan" xmlns="http://www.w3.org/2000/svg"></svg>
+    <div class="legend">
+      <span style="color:#f7d9d2">厨房</span>
+      <span style="color:#f3c08c">デシャップ</span>
+      <span style="color:#cfe3c2">カウンター</span>
+      <span style="color:#c8d8ea">テーブル</span>
+      <span style="color:#e3cfe6">WC</span>
+      <span style="color:#f5e9b8">入口</span>
+      <span style="color:#f1efe9">通路</span>
+    </div>
+    <div class="panel">
+      <h2>通路幅 × パターン比較(他条件は現在の設定)</h2>
+      <table class="cmp">
+        <thead>
+          <tr><th>パターン</th><th>総席数</th><th>4人卓</th><th>2人卓</th><th>カウンター</th><th>席/坪</th></tr>
+        </thead>
+        <tbody id="sweepBody"></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+<script src="presets.js"></script>
+<script src="engine.js"></script>
+<script src="dxf.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
