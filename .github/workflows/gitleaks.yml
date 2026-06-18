@@ -1,0 +1,59 @@
+name: gitleaks
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: ['**']
+  schedule:
+    # Weekly full-history scan, Monday morning JST.
+    # The exact minute/hour is staggered per-repo by install-security.ps1
+    # to avoid all repos hitting Actions at the same time.
+    - cron: '59 2 * * 1'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  scan:
+    name: Detect secrets and PII
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (full history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run gitleaks
+        id: gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_CONFIG: .security/gitleaks.toml
+          GITLEAKS_ENABLE_COMMENTS: true
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: true
+          GITLEAKS_ENABLE_SUMMARY: true
+
+      - name: Open issue on scheduled scan failure
+        if: failure() && github.event_name == 'schedule'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const today = new Date().toISOString().slice(0, 10);
+            await github.rest.issues.create({
+              owner, repo,
+              title: `🚨 Weekly gitleaks scan found leaks (${today})`,
+              body: [
+                `Weekly scheduled gitleaks scan detected secrets in repository history.`,
+                ``,
+                `**Run:** ${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`,
+                ``,
+                `Review the workflow logs/artifact and follow \`SECURITY_ROTATION_PROCEDURE.md\`.`,
+                `Strategy: rotate the leaked credentials to invalidate history (do NOT force-push).`,
+              ].join('\n'),
+              labels: ['security', 'gitleaks-weekly'],
+            });
